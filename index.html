@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CanuckDogs Real Data Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .search-section {
+            padding: 40px;
+            text-align: center;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .search-box {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            padding: 18px 25px;
+            font-size: 1.2rem;
+            border: 3px solid #ddd;
+            border-radius: 12px;
+            min-width: 400px;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 6px 20px rgba(102,126,234,0.3);
+        }
+
+        .search-btn {
+            padding: 18px 35px;
+            font-size: 1.2rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102,126,234,0.6);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .instructions {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .proxy-iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status {
+            display: none;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            padding: 40px;
+        }
+
+        .extraction-panel {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .extract-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            margin: 10px;
+        }
+
+        .extract-btn:hover {
+            background: #218838;
+        }
+
+        .data-display {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            overflow-x: auto;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .download-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .download-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .download-btn:hover {
+            background: #5a6268;
+        }
+
+        .error {
+            display: none;
+            background: #e74c3c;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .github-setup {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .github-setup h3 {
+            margin-bottom: 15px;
+            color: #ecf0f1;
+        }
+
+        .github-setup ol {
+            margin-left: 20px;
+            line-height: 1.6;
+        }
+
+        .github-setup code {
+            background: #34495e;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .corsanywhere-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐕 CanuckDogs Real Data Extractor</h1>
+            <p>Extract actual competition data directly from CanuckDogs.com</p>
+        </div>
+
+        <div class="search-section">
+            <h2>Enter Dog's Registered Name</h2>
+            <div class="search-box">
+                <input type="text" id="dogName" class="search-input" placeholder="Enter full registered name..." />
+                <button onclick="searchRealData()" id="searchBtn" class="search-btn">🔍 Extract Real Data</button>
+            </div>
+
+            <div class="instructions">
+                <h3>📋 How This Works (Real Data Extraction):</h3>
+                <ol>
+                    <li><strong>Enter dog name</strong> and click "Extract Real Data"</li>
+                    <li><strong>Proxy loads</strong> CanuckDogs.com safely (bypasses CORS)</li>
+                    <li><strong>Auto-search</strong> finds the dog and navigates to their page</li>
+                    <li><strong>Extract button</strong> appears - click to analyze tables</li>
+                    <li><strong>Real data</strong> gets processed and displayed with statistics</li>
+                </ol>
+            </div>
+
+            <div class="corsanywhere-notice">
+                <strong>⚠️ CORS Proxy Notice:</strong> This app uses a public CORS proxy to access CanuckDogs.com. 
+                If you get CORS errors, the proxy might be down. You can set up your own proxy or use the browser extension version.
+            </div>
+        </div>
+
+        <div id="status" class="status">
+            <div class="spinner"></div>
+            <p id="statusText">Loading CanuckDogs.com...</p>
+        </div>
+
+        <div id="error" class="error">
+            <p id="errorMessage"></p>
+        </div>
+
+        <div id="proxySection" style="display: none; padding: 20px;">
+            <div class="extraction-panel">
+                <h3>🎯 CanuckDogs.com Loaded</h3>
+                <p>The site is loaded below. Navigate to your dog's page, then click "Extract Data"</p>
+                <button class="extract-btn" onclick="extractFromProxy()">📊 Extract Data from Current Page</button>
+                <button class="extract-btn" onclick="autoSearch()">🔍 Auto-Search for Dog</button>
+            </div>
+            <iframe id="proxyFrame" class="proxy-iframe" src=""></iframe>
+        </div>
+
+        <div id="results" class="results">
+            <h2>📊 Extracted Competition Data</h2>
+            <div id="extractionSummary"></div>
+            <div class="data-display" id="dataDisplay"></div>
+            
+            <div class="download-section">
+                <button class="download-btn" onclick="downloadJSON()">📄 Download JSON</button>
+                <button class="download-btn" onclick="downloadCSV()">📊 Download CSV</button>
+                <button class="download-btn" onclick="copyToClipboard()">📋 Copy Data</button>
+            </div>
+        </div>
+
+        <div class="github-setup">
+            <h3>🚀 GitHub Pages Setup Instructions</h3>
+            <ol>
+                <li>Create a new repository on GitHub</li>
+                <li>Upload this HTML file as <code>index.html</code></li>
+                <li>Go to Settings → Pages → Deploy from branch → main</li>
+                <li>Your extractor will be live at: <code>https://yourusername.github.io/repository-name</code></li>
+                <li>Share the link - anyone can use it to extract CanuckDogs data!</li>
+            </ol>
+            
+            <p><strong>💡 Pro Tip:</strong> For even better reliability, you can also build this as a browser extension or use a dedicated CORS proxy service.</p>
+        </div>
+    </div>
+
+    <script>
+        let currentDogName = '';
+        let extractedData = null;
+
+        async function searchRealData() {
+            const dogName = document.getElementById('dogName').value.trim();
+            
+            if (!dogName) {
+                alert('Please enter a dog name');
+                return;
+            }
+
+            currentDogName = dogName;
+            showLoading('Connecting to CanuckDogs.com...');
+
+            try {
+                // Use CORS proxy to load CanuckDogs.com
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/https://canuckdogs.com';
+                const iframe = document.getElementById('proxyFrame');
+                
+                iframe.onload = function() {
+                    hideLoading();
+                    document.getElementById('proxySection').style.display = 'block';
+                    updateStatus('CanuckDogs.com loaded! Navigate to your dog\'s page and click "Extract Data"');
+                };
+
+                iframe.onerror = function() {
+                    showError('Failed to load CanuckDogs.com. The CORS proxy might be down. Try the browser extension method.');
+                };
+
+                iframe.src = proxyUrl;
+
+            } catch (error) {
+                showError('Error connecting to CanuckDogs.com: ' + error.message);
+            }
+        }
+
+        function autoSearch() {
+            const iframe = document.getElementById('proxyFrame');
+            
+            try {
+                // Try to interact with iframe content (will work if same-origin or CORS allows)
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const searchBox = iframeDoc.querySelector('input[type="text"]');
+                
+                if (searchBox) {
+                    searchBox.value = currentDogName;
+                    searchBox.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // Try to submit search
+                    const submitBtn = iframeDoc.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.click();
+                    } else {
+                        // Try pressing Enter
+                        searchBox.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter' }));
+                    }
+                    
+                    updateStatus('Auto-search initiated for: ' + currentDogName);
+                } else {
+                    updateStatus('Could not find search box. Please search manually for: ' + currentDogName);
+                }
+            } catch (error) {
+                updateStatus('Auto-search blocked by CORS. Please search manually for: ' + currentDogName);
+            }
+        }
+
+        function extractFromProxy() {
+            const iframe = document.getElementById('proxyFrame');
+            
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                if (!iframeDoc) {
+                    throw new Error('Cannot access iframe content due to CORS restrictions');
+                }
+
+                // Extract data using the same logic as before
+                const extractedResults = extractDataFromDocument(iframeDoc);
+                
+                if (extractedResults && extractedResults.totalResults > 0) {
+                    displayExtractedResults(extractedResults);
+                } else {
+                    showError('No competition data found on this page. Make sure you\'re on a dog\'s profile page.');
+                }
+
+            } catch (error) {
+                showError('Cannot extract data due to CORS restrictions. Please use the browser extension method or manual extraction.');
+                
+                // Provide manual extraction code
+                showManualExtractionCode();
+            }
+        }
+
+        function extractDataFromDocument(doc) {
+            const tables = doc.querySelectorAll('table');
+            let allResults = [];
+            let currentShow = null;
+            let currentShowDate = null;
+            
+            tables.forEach(table => {
+                const rows = table.querySelectorAll('tr');
+                
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td, th');
+                    
+                    if (cells.length >= 2) {
+                        const firstCell = cells[0]?.textContent?.trim() || '';
+                        const secondCell = cells[1]?.textContent?.trim() || '';
+                        const thirdCell = cells[2]?.textContent?.trim() || '';
+                        const fourthCell = cells[3]?.textContent?.trim() || '';
+                        const fifthCell = cells[4]?.textContent?.trim() || '';
+                        
+                        // Detect show headers
+                        if (isShowHeader(firstCell, secondCell)) {
+                            currentShow = firstCell;
+                            currentShowDate = secondCell;
+                        }
+                        // Detect result rows
+                        else if (isDayName(firstCell)) {
+                            const result = {
+                                show: currentShow,
+                                date: formatDate(currentShowDate, firstCell),
+                                day: firstCell,
+                                position: thirdCell,
+                                judge: fourthCell,
+                                points: extractPoints(fifthCell),
+                                dogsBeaten: extractDogsBeaten(fifthCell),
+                                category: categorizeShow(currentShow, thirdCell),
+                                year: extractYear(currentShowDate)
+                            };
+                            
+                            allResults.push(result);
+                        }
+                    }
+                });
+            });
+
+            return organizeResults(allResults);
+        }
+
+        function isShowHeader(firstCell, secondCell) {
+            const showIndicators = ['club', 'kennel', 'association', 'society', 'trial', 'specialty'];
+            const hasShowIndicator = showIndicators.some(indicator => 
+                firstCell.toLowerCase().includes(indicator)
+            );
+            const hasDatePattern = /\d{1,2}.*\d{4}/.test(secondCell);
+            return hasShowIndicator && hasDatePattern && firstCell.length > 10;
+        }
+
+        function isDayName(text) {
+            const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            return dayNames.includes(text.toLowerCase().trim());
+        }
+
+        function extractPoints(pointsText) {
+            if (!pointsText) return 0;
+            const match = pointsText.match(/^(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function extractDogsBeaten(pointsText) {
+            if (!pointsText) return 0;
+            const match = pointsText.match(/\(([^)]+)\)/);
+            if (match) {
+                const numbers = match[1].split('-').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                if (numbers.length > 0) {
+                    return Math.max(numbers.reduce((sum, n) => sum + n, 0) - 1, 0);
+                }
+            }
+            return 0;
+        }
+
+        function categorizeShow(showName, position) {
+            const showLower = (showName || '').toLowerCase();
+            const posLower = (position || '').toLowerCase();
+            
+            if (showLower.includes('agility') || posLower.includes('standard') || posLower.includes('jww')) {
+                return 'agility';
+            }
+            if (showLower.includes('rally') || posLower.includes('rally')) {
+                return 'rally';
+            }
+            if (showLower.includes('obedience') || posLower.includes('obedience')) {
+                return 'obedience';
+            }
+            return 'conformation';
+        }
+
+        function extractYear(dateText) {
+            const match = dateText ? dateText.match(/\d{4}/) : null;
+            return match ? match[0] : new Date().getFullYear().toString();
+        }
+
+        function formatDate(dateRange, dayName) {
+            if (!dateRange || !dayName) return '';
+            const yearMatch = dateRange.match(/\d{4}/);
+            const year = yearMatch ? yearMatch[0] : '';
+            const monthMatch = dateRange.match(/([A-Za-z]+)\s+(\d+)/);
+            
+            if (!monthMatch) return dateRange;
+            
+            const month = monthMatch[1];
+            let dayNumber = parseInt(monthMatch[2]);
+            
+            if (dateRange.includes(' to ')) {
+                const endDayMatch = dateRange.match(/to\s+(?:[A-Za-z]+\s+)?(\d+)/);
+                const endDay = endDayMatch ? parseInt(endDayMatch[1]) : dayNumber;
+                
+                const dayLower = dayName.toLowerCase();
+                if (dayLower === 'sunday') {
+                    dayNumber = endDay;
+                }
+            }
+            
+            return `${month} ${dayNumber}, ${year}`;
+        }
+
+        function organizeResults(results) {
+            const yearlyData = {};
+            
+            results.forEach(result => {
+                const year = result.year;
+                const category = result.category;
+                
+                if (!yearlyData[year]) {
+                    yearlyData[year] = { conformation: [], agility: [], rally: [], obedience: [] };
+                }
+                
+                yearlyData[year][category].push(result);
+            });
+
+            return {
+                totalResults: results.length,
+                yearlyData: yearlyData,
+                extractedAt: new Date().toISOString()
+            };
+        }
+
+        function displayExtractedResults(data) {
+            extractedData = data;
+            
+            document.getElementById('extractionSummary').innerHTML = `
+                <h3>✅ Extraction Complete!</h3>
+                <p><strong>Total Competition Results:</strong> ${data.totalResults}</p>
+                <p><strong>Years Found:</strong> ${Object.keys(data.yearlyData).join(', ')}</p>
+                <p><strong>Extracted:</strong> ${new Date(data.extractedAt).toLocaleString()}</p>
+            `;
+
+            document.getElementById('dataDisplay').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function showManualExtractionCode() {
+            const manualCode = `
+// MANUAL EXTRACTION CODE - Run in CanuckDogs.com console:
+
+function extractCanuckDogsData() {
+    const tables = document.querySelectorAll('table');
+    let results = [];
+    let currentShow = null;
+    let currentShowDate = null;
+    
+    tables.forEach(table => {
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td, th');
+            if (cells.length >= 2) {
+                const c1 = cells[0]?.textContent?.trim() || '';
+                const c2 = cells[1]?.textContent?.trim() || '';
+                const c3 = cells[2]?.textContent?.trim() || '';
+                const c4 = cells[3]?.textContent?.trim() || '';
+                const c5 = cells[4]?.textContent?.trim() || '';
+                
+                if (c1.toLowerCase().includes('club') && /\\d{4}/.test(c2)) {
+                    currentShow = c1;
+                    currentShowDate = c2;
+                } else if (['saturday','sunday','friday','monday','tuesday','wednesday','thursday'].includes(c1.toLowerCase())) {
+                    results.push({show: currentShow, date: currentShowDate, day: c1, position: c3, judge: c4, points: c5});
+                }
+            }
+        });
+    });
+    
+    console.log('Extracted Results:', results);
+    return results;
+}
+
+// Run this and copy the results:
+extractCanuckDogsData();
+            `;
+
+            document.getElementById('dataDisplay').textContent = manualCode;
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('extractionSummary').innerHTML = `
+                <h3>🔧 Manual Extraction Required</h3>
+                <p>Copy the code below, go to CanuckDogs.com, open browser console (F12), paste and run it.</p>
+            `;
+        }
+
+        function downloadJSON() {
+            if (!extractedData) return;
+            const blob = new Blob([JSON.stringify(extractedData, null, 2)], { type: 'application/json' });
+            downloadBlob(blob, 'canuckdogs_data.json');
+        }
+
+        function downloadCSV() {
+            if (!extractedData) return;
+            
+            const allResults = [];
+            Object.entries(extractedData.yearlyData).forEach(([year, categories]) => {
+                Object.entries(categories).forEach(([category, results]) => {
+                    results.forEach(result => {
+                        allResults.push({
+                            year,
+                            category,
+                            ...result
+                        });
+                    });
+                });
+            });
+
+            const headers = ['year', 'category', 'show', 'date', 'day', 'position', 'judge', 'points', 'dogsBeaten'];
+            const csv = [headers.join(',')];
+            
+            allResults.forEach(result => {
+                csv.push(headers.map(h => `"${result[h] || ''}"`).join(','));
+            });
+
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            downloadBlob(blob, 'canuckdogs_data.csv');
+        }
+
+        function copyToClipboard() {
+            if (!extractedData) return;
+            navigator.clipboard.writeText(JSON.stringify(extractedData, null, 2));
+            alert('Data copied to clipboard!');
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showLoading(message) {
+            document.getElementById('statusText').textContent = message;
+            document.getElementById('status').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').textContent = message;
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('error').style.display = 'block';
+            hideLoading();
+        }
+
+        // Enter key support
+        document.getElementById('dogName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchRealData();
+            }
+        });
+
+        document.getElementById('dogName').focus();
+    </script>
+</body>
+</html>
