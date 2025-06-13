@@ -583,60 +583,121 @@
         let currentDogData = null;
         let selectedYear = null;
 
-        // CKC Grand Master Points Formula Implementation
+        // CKC Grand Master Points Formula Implementation - Updated for accurate calculations
         function calculateGrandMasterPoints(showResult) {
-            const { position, judge, dogsBeaten, category } = showResult;
+            const { position, judge, dogsBeaten, category, rawPoints } = showResult;
             let points = 0;
+            let calculationSteps = [];
+            
+            // Extract actual dogs beaten if not provided
+            const actualDogsBeaten = dogsBeaten || extractDogsBeatenFromPoints(rawPoints);
             
             // Base points for breed competition
             if (position.toLowerCase().includes('best of breed') || 
                 position.toLowerCase().includes('bob')) {
-                points = Math.min(dogsBeaten || 0, 5); // Max 5 points for BOB
+                const breedPoints = Math.min(actualDogsBeaten, 5);
+                points += breedPoints;
+                calculationSteps.push(`BOB: min(${actualDogsBeaten}, 5) = ${breedPoints}`);
             }
             else if (position.toLowerCase().includes('winners dog') || 
                      position.toLowerCase().includes('winners bitch') ||
                      position.toLowerCase().includes('wd') ||
                      position.toLowerCase().includes('wb')) {
-                points = Math.min(dogsBeaten || 0, 5); // Max 5 points for WD/WB
+                const breedPoints = Math.min(actualDogsBeaten, 5);
+                points += breedPoints;
+                calculationSteps.push(`WD/WB: min(${actualDogsBeaten}, 5) = ${breedPoints}`);
             }
             
             // Group placement points (additional to breed points)
             if (position.toLowerCase().includes('group 1') || 
                 position.toLowerCase().includes('g1') ||
                 position.toLowerCase().includes('group 1st')) {
-                points += Math.min((dogsBeaten || 0) * 2, 40); // Group 1st: 2x breed count, max 40
+                const groupPoints = Math.min(actualDogsBeaten * 2, 40);
+                points += groupPoints;
+                calculationSteps.push(`G1 Bonus: min(${actualDogsBeaten} × 2, 40) = ${groupPoints}`);
             }
             else if (position.toLowerCase().includes('group 2') || 
                      position.toLowerCase().includes('g2') ||
                      position.toLowerCase().includes('group 2nd')) {
-                points += Math.min((dogsBeaten || 0) * 1.5, 30); // Group 2nd: 1.5x breed count, max 30
+                const groupPoints = Math.min(Math.floor(actualDogsBeaten * 1.5), 30);
+                points += groupPoints;
+                calculationSteps.push(`G2 Bonus: min(${actualDogsBeaten} × 1.5, 30) = ${groupPoints}`);
             }
             else if (position.toLowerCase().includes('group 3') || 
                      position.toLowerCase().includes('g3') ||
                      position.toLowerCase().includes('group 3rd')) {
-                points += Math.min((dogsBeaten || 0) * 1, 20); // Group 3rd: 1x breed count, max 20
+                const groupPoints = Math.min(actualDogsBeaten, 20);
+                points += groupPoints;
+                calculationSteps.push(`G3 Bonus: min(${actualDogsBeaten} × 1, 20) = ${groupPoints}`);
             }
             else if (position.toLowerCase().includes('group 4') || 
                      position.toLowerCase().includes('g4') ||
                      position.toLowerCase().includes('group 4th')) {
-                points += Math.min((dogsBeaten || 0) * 0.5, 10); // Group 4th: 0.5x breed count, max 10
+                const groupPoints = Math.min(Math.floor(actualDogsBeaten * 0.5), 10);
+                points += groupPoints;
+                calculationSteps.push(`G4 Bonus: min(${actualDogsBeaten} × 0.5, 10) = ${groupPoints}`);
             }
             
             // Best in Show points (additional to all previous)
             if (position.toLowerCase().includes('best in show') || 
                 position.toLowerCase().includes('bis')) {
-                points += Math.min((dogsBeaten || 0) * 5, 200); // BIS: 5x breed count, max 200
+                const bisPoints = Math.min(actualDogsBeaten * 5, 200);
+                points += bisPoints;
+                calculationSteps.push(`BIS Bonus: min(${actualDogsBeaten} × 5, 200) = ${bisPoints}`);
             }
             
             // Specialty show multiplier
+            let specialtyMultiplier = 1;
             if (showResult.show && showResult.show.toLowerCase().includes('specialty')) {
-                points *= 1.5; // 50% bonus for specialty shows
+                specialtyMultiplier = 1.5;
+                calculationSteps.push(`Specialty Bonus: ×1.5`);
             }
             
-            return Math.round(points);
+            const finalPoints = Math.round(points * specialtyMultiplier);
+            
+            // If no points earned, show why
+            if (finalPoints === 0) {
+                if (position.toLowerCase().includes('select') || position.toLowerCase().includes('opposite')) {
+                    calculationSteps.push(`${position}: 0 points (no championship points awarded)`);
+                } else if (actualDogsBeaten === 0) {
+                    calculationSteps.push(`${position}: 0 points (no dogs defeated)`);
+                } else {
+                    calculationSteps.push(`${position}: 0 points (non-point earning placement)`);
+                }
+            }
+            
+            return {
+                points: finalPoints,
+                calculation: calculationSteps.join(' + '),
+                dogsBeaten: actualDogsBeaten,
+                breakdown: calculationSteps
+            };
         }
 
-        // Mock data with realistic CanuckDogs structure
+        // Enhanced function to extract dogs beaten from CanuckDogs points format
+        function extractDogsBeatenFromPoints(rawPoints) {
+            if (!rawPoints || rawPoints === 'N/A') return 0;
+            
+            // Handle formats like "4 (1-1-2-1)" or "13" or "0"
+            const match = rawPoints.match(/(\d+)\s*\(([^)]+)\)/);
+            if (match) {
+                // Extract from breakdown format: "4 (1-1-2-1)"
+                const breakdown = match[2].split('-').map(n => parseInt(n));
+                // Sum: dogs + bitches + specials + (additional class if present)
+                return breakdown.reduce((sum, num) => sum + num, 0);
+            }
+            
+            // For simple numbers like "13" or "64", estimate dogs beaten
+            const points = parseInt(rawPoints);
+            if (points > 5) {
+                // Likely includes group points, estimate based on common ratios
+                return Math.floor(points / 2); // Conservative estimate
+            }
+            
+            return points; // For 0-5 points, assume equal to dogs beaten
+        }
+
+        // Mock data with ALL lines per day from CanuckDogs format
         const mockCanuckDogsData = {
             basicInfo: {
                 registeredName: "CAN BIS RBIS GCHB AM CH ROBEL GTO IT'S MILLER TIME AEGEAN H2O",
@@ -647,14 +708,38 @@
             yearlyData: {
                 2024: {
                     conformation: [
-                        { show: "Regina Kennel & Obedience Club", dateRange: "May 18 to May 19, 2024", day: "Saturday", position: "Best Of Breed", judge: "Honey Glendinning", dogsBeaten: 8, rawPoints: "4 (1-2-1-0)" },
-                        { show: "Regina Kennel & Obedience Club", dateRange: "May 18 to May 19, 2024", day: "Sunday", position: "Group 3rd", judge: "Ta'mis Postma", dogsBeaten: 25, rawPoints: "13" },
-                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Saturday", position: "Group 1st", judge: "Joan Luna Liebes", dogsBeaten: 32, rawPoints: "64" },
-                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Friday", position: "Best Of Breed", judge: "Robin Hughes", dogsBeaten: 12, rawPoints: "5" },
-                        { show: "Hub City Kennel & Obedience Club", dateRange: "May 3 to May 5, 2024", day: "Sunday", position: "Group 3rd", judge: "Darryl Vice", dogsBeaten: 18, rawPoints: "44" },
-                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Saturday", position: "Group 3rd", judge: "Lynda Saranchuk", dogsBeaten: 22, rawPoints: "34" },
-                        { show: "Battle River Canine Association", dateRange: "March 22 to March 24, 2024", day: "Sunday", position: "Group 3rd", judge: "Mario Knoll", dogsBeaten: 30, rawPoints: "49" },
-                        { show: "Edmonton Kennel Club", dateRange: "March 15 to March 17, 2024", day: "Saturday", position: "Best Of Breed", judge: "Kim Ritchie", dogsBeaten: 6, rawPoints: "4 (2-1-1-0)" }
+                        // Regina Kennel & Obedience Club - ALL 4 lines
+                        { show: "Regina Kennel & Obedience Club", dateRange: "May 18 to May 19, 2024", day: "Sunday", position: "Group 3rd", judge: "Tannis Postma", rawPoints: "13", dogsBeaten: 6 },
+                        { show: "Regina Kennel & Obedience Club", dateRange: "May 18 to May 19, 2024", day: "Sunday", position: "Best Of Breed", judge: "Tannis Postma", rawPoints: "4 (1-1-2-1)", dogsBeaten: 5 },
+                        { show: "Regina Kennel & Obedience Club", dateRange: "May 18 to May 19, 2024", day: "Saturday", position: "Best Of Breed", judge: "Honey Glendinning", rawPoints: "4 (1-1-2-1)", dogsBeaten: 5 },
+                        { show: "Regina Kennel & Obedience Club", dateRange: "May 18 to May 19, 2024", day: "Saturday", position: "Select Dog", judge: "Sharon Derrick", rawPoints: "N/A", dogsBeaten: 0 },
+                        
+                        // Calgary Kennel & Obedience Club - ALL 5 lines
+                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Sunday", position: "Best Of Breed", judge: "Eric Liebes (Dr)", rawPoints: "0", dogsBeaten: 0 },
+                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Saturday", position: "Group 1st", judge: "Joan Luna Liebes", rawPoints: "64", dogsBeaten: 32 },
+                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Saturday", position: "Best Of Breed", judge: "Joan Luna Liebes", rawPoints: "0", dogsBeaten: 0 },
+                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Saturday", position: "Best Of Breed", judge: "Catherine Barlow", rawPoints: "0", dogsBeaten: 0 },
+                        { show: "Calgary Kennel & Obedience Club", dateRange: "May 10 to May 12, 2024", day: "Friday", position: "Best Of Breed", judge: "Robin Hughes", rawPoints: "0", dogsBeaten: 0 },
+                        
+                        // Saskatoon Working & Herding Dog Association - 1 line
+                        { show: "Saskatoon Working & Herding Dog Association", dateRange: "May 04 to May 04, 2024", day: "Saturday", position: "Best Of Opposite Sex", judge: "Laurel Deptuch", rawPoints: "N/A", dogsBeaten: 0 },
+                        
+                        // Additional shows with multiple lines per day
+                        { show: "Hub City Kennel & Obedience Club", dateRange: "May 3 to May 5, 2024", day: "Sunday", position: "Group 3rd", judge: "Darryl Vice", rawPoints: "44", dogsBeaten: 22 },
+                        { show: "Hub City Kennel & Obedience Club", dateRange: "May 3 to May 5, 2024", day: "Sunday", position: "Best Of Breed", judge: "Darryl Vice", rawPoints: "8 (1-2-3-3)", dogsBeaten: 9 },
+                        
+                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Sunday", position: "Best Of Breed", judge: "Kim Ramey-Leblanc", rawPoints: "0", dogsBeaten: 0 },
+                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Saturday", position: "Group 3rd", judge: "Lynda Saranchuk", rawPoints: "34", dogsBeaten: 17 },
+                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Saturday", position: "Best Of Breed", judge: "Lynda Saranchuk", rawPoints: "0", dogsBeaten: 0 },
+                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Friday", position: "Group 2nd", judge: "Mel Saranchuk", rawPoints: "29", dogsBeaten: 15 },
+                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Friday", position: "Best Of Breed", judge: "Todd Foley", rawPoints: "0", dogsBeaten: 0 },
+                        { show: "Assiniboine Kennel Club", dateRange: "March 29 to March 31, 2024", day: "Friday", position: "Best Of Breed", judge: "Mel Saranchuk", rawPoints: "0", dogsBeaten: 0 },
+                        
+                        { show: "Battle River Canine Association", dateRange: "March 22 to March 24, 2024", day: "Sunday", position: "Group 3rd", judge: "Mario Knoll", rawPoints: "49", dogsBeaten: 25 },
+                        { show: "Battle River Canine Association", dateRange: "March 22 to March 24, 2024", day: "Sunday", position: "Best Of Breed", judge: "Mario Knoll", rawPoints: "4 (1-1-2-1)", dogsBeaten: 5 },
+                        { show: "Battle River Canine Association", dateRange: "March 22 to March 24, 2024", day: "Saturday", position: "Select Dog", judge: "Guy Spagnolo", rawPoints: "N/A", dogsBeaten: 0 },
+                        { show: "Battle River Canine Association", dateRange: "March 22 to March 24, 2024", day: "Friday", position: "Group 4th", judge: "Shawn Bennett", rawPoints: "29", dogsBeaten: 15 },
+                        { show: "Battle River Canine Association", dateRange: "March 22 to March 24, 2024", day: "Friday", position: "Best Of Breed", judge: "Shawn Bennett", rawPoints: "4 (1-2-2-0)", dogsBeaten: 5 }
                     ]
                 },
                 2023: {
@@ -709,13 +794,17 @@
                 let yearPoints = 0;
                 
                 Object.keys(yearData).forEach(category => {
-                    yearData[category].forEach(result => {
-                        const points = calculateGrandMasterPoints(result);
-                        result.grandMasterPoints = points;
-                        result.calculation = getCalculationFormula(result);
-                        yearPoints += points;
-                        totalPoints += points;
-                    });
+                    if (Array.isArray(yearData[category])) {
+                        yearData[category].forEach(result => {
+                            const calculationResult = calculateGrandMasterPoints(result);
+                            result.grandMasterPoints = calculationResult.points;
+                            result.calculation = calculationResult.calculation;
+                            result.dogsBeaten = calculationResult.dogsBeaten;
+                            result.calculationBreakdown = calculationResult.breakdown;
+                            yearPoints += calculationResult.points;
+                            totalPoints += calculationResult.points;
+                        });
+                    }
                 });
                 
                 currentDogData.yearlyData[year].totalPoints = yearPoints;
@@ -725,26 +814,8 @@
         }
 
         function getCalculationFormula(result) {
-            const { position, dogsBeaten } = result;
-            let formula = [];
-            
-            if (position.toLowerCase().includes('best of breed') || position.toLowerCase().includes('bob')) {
-                formula.push(`BOB: min(${dogsBeaten}, 5) = ${Math.min(dogsBeaten || 0, 5)} pts`);
-            }
-            
-            if (position.toLowerCase().includes('group 1')) {
-                formula.push(`G1 Bonus: min(${dogsBeaten} × 2, 40) = ${Math.min((dogsBeaten || 0) * 2, 40)} pts`);
-            } else if (position.toLowerCase().includes('group 2')) {
-                formula.push(`G2 Bonus: min(${dogsBeaten} × 1.5, 30) = ${Math.min((dogsBeaten || 0) * 1.5, 30)} pts`);
-            } else if (position.toLowerCase().includes('group 3')) {
-                formula.push(`G3 Bonus: min(${dogsBeaten} × 1, 20) = ${Math.min((dogsBeaten || 0) * 1, 20)} pts`);
-            }
-            
-            if (result.show && result.show.toLowerCase().includes('specialty')) {
-                formula.push(`Specialty Bonus: ×1.5`);
-            }
-            
-            return formula.join(' + ');
+            // This function is now handled by the enhanced calculateGrandMasterPoints
+            return result.calculation || 'No points calculation available';
         }
 
         function displayDashboard() {
